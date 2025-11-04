@@ -6,7 +6,8 @@ on:
   #  branches: [ "main" ]
     
 env:
-  UBUNTU_VERSION: 22.04
+  UBUNTU_VERSION: 24.04
+  UBUNTU_VERSION_ROCM: 22.04
   BUILDX_NO_DEFAULT_ATTESTATIONS: 1
 
 jobs:
@@ -16,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - {latest: "false", comfyui: "v0.2.7", python: "3.10", pytorch: "2.5.1"}
+          - {latest: "false", comfyui: "v0.2.7", python: "3.12", pytorch: "2.5.1"}
     steps:
       -
         name: Free Space
@@ -68,7 +69,7 @@ jobs:
             [ -z "$COMFYUI_BUILD_REF" ] && { echo "Error: COMFYUI_BUILD_REF is empty. Exiting script." >&2; exit 1; }
             echo "COMFYUI_BUILD_REF=${COMFYUI_BUILD_REF}" >> ${GITHUB_ENV}
 
-            base_tag="v2-cpu-${{ env.UBUNTU_VERSION }}"
+            base_tag="v1-python${{ matrix.build.python }}-cpu-ubuntu${{ env.UBUNTU_VERSION }}"
 
             if [[ ${{ matrix.build.latest }} == "true" ]]; then
                 echo "Marking latest"
@@ -83,7 +84,7 @@ jobs:
         with:
           context: build
           build-args: |
-            IMAGE_BASE=ghcr.io/ai-dock/python:${{ matrix.build.python }}-v2-cpu-${{ env.UBUNTU_VERSION }}
+            IMAGE_BASE=ghcr.io/phonehomephone/python:v1-python${{ matrix.build.python }}-cpu-ubuntu${{ env.UBUNTU_VERSION }}
             PYTHON_VERSION=${{ matrix.build.python }}
             PYTORCH_VERSION=${{ matrix.build.pytorch }}
             COMFYUI_BUILD_REF=${{ env.COMFYUI_BUILD_REF }}
@@ -98,8 +99,8 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - {latest: "false", comfyui: "v0.2.7", python: "3.10", pytorch: "2.5.1", cuda: "12.1.1-base"}
-          - {latest: "false", comfyui: "v0.2.7", python: "3.10", pytorch: "2.5.1", cuda: "12.1.1-cudnn8-devel"}
+          - {latest: "false", comfyui: "v0.2.7", python: "3.12", pytorch: "2.5.1", cuda: "12.8.1-runtime"}
+          - {latest: "false", comfyui: "v0.2.7", python: "3.12", pytorch: "2.5.1", cuda: "12.8.1-runtime"}
     steps:
       -
         name: Free Space
@@ -152,7 +153,7 @@ jobs:
           [ -z "$COMFYUI_BUILD_REF" ] && { echo "Error: COMFYUI_BUILD_REF is empty. Exiting script." >&2; exit 1; }
           echo "COMFYUI_BUILD_REF=${COMFYUI_BUILD_REF}" >> ${GITHUB_ENV}
 
-          base_tag="v2-cuda-${{ matrix.build.cuda }}-${{ env.UBUNTU_VERSION }}"
+          base_tag="v1-python${{ matrix.build.python }}-cuda-${{ matrix.build.cuda }}-ubuntu${{ env.UBUNTU_VERSION }}"
 
           if [[ ${{ matrix.build.latest }} == "true" ]]; then
                 echo "Marking latest"
@@ -163,10 +164,6 @@ jobs:
             else
                 TAGS="${img_path_ghcr}:${base_tag}-${COMFYUI_BUILD_REF}, ${img_path_dhub}:${COMFYUI_BUILD_REF}"
             fi
-            # Tag a devel build
-            if [[ ${{ matrix.build.cuda }} = *-devel ]]; then
-                TAGS="${TAGS}, ${img_path_dhub}:${COMFYUI_BUILD_REF}-devel"
-            fi
           echo "TAGS=${TAGS}" >> ${GITHUB_ENV}
       -
         name: Build and push
@@ -174,7 +171,7 @@ jobs:
         with:
           context: build
           build-args: |
-            IMAGE_BASE=ghcr.io/ai-dock/python:${{ matrix.build.python }}-v2-cuda-${{ matrix.build.cuda }}-${{ env.UBUNTU_VERSION }}
+            IMAGE_BASE=ghcr.io/phonehomephone/python:v1-python${{ matrix.build.python }}-cuda-${{ matrix.build.cuda }}-ubuntu${{ env.UBUNTU_VERSION }}
             PYTHON_VERSION=${{ matrix.build.python }}
             PYTORCH_VERSION=${{ matrix.build.pytorch }}
             COMFYUI_BUILD_REF=${{ env.COMFYUI_BUILD_REF }}
@@ -188,7 +185,7 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - {latest: "false", comfyui: "v0.2.7", python: "3.10", pytorch: "2.3.1", rocm: "6.0-runtime"}
+          - {latest: "false", comfyui: "v0.2.7", python: "3.12", pytorch: "2.3.1", rocm: "6.2-runtime"}
     steps:
       -
         name: Free Space
@@ -241,7 +238,7 @@ jobs:
             [ -z "$COMFYUI_BUILD_REF" ] && { echo "Error: COMFYUI_BUILD_REF is empty. Exiting script." >&2; exit 1; }
             echo "COMFYUI_BUILD_REF=${COMFYUI_BUILD_REF}" >> ${GITHUB_ENV}
 
-            base_tag="v2-rocm-${{ matrix.build.rocm }}-${{ env.UBUNTU_VERSION }}"
+            base_tag="v1-python${{ matrix.build.python }}-rocm-${{ matrix.build.rocm }}-ubuntu${{ env.UBUNTU_VERSION_ROCM }}"
 
             if [[ ${{ matrix.build.latest }} == "true" ]]; then
                 echo "Marking latest"
@@ -259,7 +256,7 @@ jobs:
         with:
           context: build
           build-args: |
-            IMAGE_BASE=ghcr.io/ai-dock/python:${{ matrix.build.python }}-v2-rocm-${{ matrix.build.rocm }}-${{ env.UBUNTU_VERSION }}
+            IMAGE_BASE=ghcr.io/phonehomephone/python:v1-python${{ matrix.build.python }}-rocm-${{ matrix.build.rocm }}-ubuntu${{ env.UBUNTU_VERSION_ROCM }}
             PYTHON_VERSION=${{ matrix.build.python }}
             PYTORCH_VERSION=${{ matrix.build.pytorch }}
             COMFYUI_BUILD_REF=${{ env.COMFYUI_BUILD_REF }}
