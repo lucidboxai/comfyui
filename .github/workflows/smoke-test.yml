@@ -1,0 +1,30 @@
+name: Smoke Test
+
+# Boots the published comfyui image on a native amd64 runner and verifies the
+# ComfyUI Python environment loads (imports every built-in node via ComfyUI's
+# own --quick-test-for-ci). No GPU required for the import/boot path.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image ref to test
+        default: ghcr.io/lucidboxai/comfyui:latest
+
+jobs:
+  boot-test:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Diagnostic — venvs, torch, kornia, ComfyUI node import
+        run: |
+          docker run --rm --entrypoint bash "${{ inputs.image }}" -c '
+            set -e
+            echo "### versions ###"
+            $COMFYUI_VENV_PYTHON --version
+            $COMFYUI_VENV_PYTHON -c "import torch,torchvision,torchaudio; print(\"torch\",torch.__version__,\"tv\",torchvision.__version__,\"ta\",torchaudio.__version__)"
+            $COMFYUI_VENV_PYTHON -c "import kornia,kornia_rs; print(\"kornia\",kornia.__version__,\"kornia_rs\",getattr(kornia_rs,\"__version__\",\"?\"))"
+            echo "### ComfyUI quick-test (imports every built-in node) ###"
+            cd /opt/ComfyUI && $COMFYUI_VENV_PYTHON main.py --cpu --quick-test-for-ci
+            echo "### ComfyUI quick-test passed ###"
+          '
