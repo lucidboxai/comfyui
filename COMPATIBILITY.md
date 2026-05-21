@@ -14,9 +14,9 @@ lucidboxai/base-image  →  lucidboxai/python  →  lucidboxai/comfyui
 | Ubuntu           | 24.04   | `*/docker-build.yml` (nvidia job `UBUNTU_VERSION`) |
 | CUDA (base image)| 12.6.3  | `base-image` CUDA matrix; `nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04` |
 | Python           | 3.12    | `python`/`comfyui` `PYTHON_VERSION` build arg |
-| PyTorch          | 2.12.0  | `comfyui` `PYTORCH_VERSION` build arg |
-| torchvision      | 0.27.0  | `comfyui` `layer0/nvidia.sh` |
-| torchaudio       | 2.12.0  | `comfyui` `layer0/nvidia.sh` (tracks PyTorch) |
+| PyTorch          | 2.11.0  | `comfyui` `PYTORCH_VERSION` build arg |
+| torchvision      | 0.26.0  | `comfyui` `layer0/nvidia.sh` |
+| torchaudio       | 2.11.0  | `comfyui` `layer0/nvidia.sh` (tracks PyTorch) |
 | PyTorch wheel idx| cu126   | derived from `CUDA_VERSION` in `layer0/nvidia.sh` |
 | xformers         | —       | not installed (see below) |
 | ComfyUI          | v0.22.0 | `comfyui` `docker-build.yml` matrix `comfyui:` |
@@ -26,13 +26,15 @@ lucidboxai/base-image  →  lucidboxai/python  →  lucidboxai/comfyui
 
 ## Binding constraints — read before bumping anything
 
-- **PyTorch ↔ CUDA wheel index.** PyTorch only publishes wheels for specific
-  `cuXXX` indexes per release. PyTorch 2.12 publishes **cu126** and **cu130**
-  only (cu128 was dropped). The CUDA base image's major.minor must match an
-  index PyTorch actually ships. `layer0/nvidia.sh` derives `cuXXX` from the
-  base image's `CUDA_VERSION`.
+- **PyTorch ↔ CUDA wheel index.** Each PyTorch release publishes wheels only
+  for specific `cuXXX` indexes, and *each index carries a different version
+  ceiling*. The **cu126** index (matching our CUDA 12.6 base) tops out at
+  **torch 2.11.0** — 2.12.0 is published only on cu128/cu130. `layer0/nvidia.sh`
+  derives `cuXXX` from the base image's `CUDA_VERSION`, so the chosen PyTorch
+  must actually exist on that index. Verify before bumping:
+  `https://download.pytorch.org/whl/cu126/torchaudio/`.
 - **torchvision / torchaudio** are version-locked to each PyTorch release
-  (torch 2.12.0 → torchvision 0.27.0, torchaudio 2.12.0).
+  (torch 2.11.0 → torchvision 0.26.0, torchaudio 2.11.0).
 - **xformers** is intentionally NOT installed. ComfyUI uses PyTorch native
   SDPA attention; an audit of the bundled provisioning custom nodes
   (ComfyUI-Manager, ComfyUI_essentials, AnimateDiff-Evolved,

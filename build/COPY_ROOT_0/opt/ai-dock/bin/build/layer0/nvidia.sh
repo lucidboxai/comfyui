@@ -10,10 +10,10 @@ build_nvidia_install_deps() {
     short_cuda_version="cu$(cut -d '.' -f 1,2 <<< "${CUDA_VERSION}" | tr -d '.')"
     # xformers intentionally omitted: ComfyUI uses PyTorch native SDPA
     # attention, no bundled custom node requires xformers, and the latest
-    # xformers wheel does not track torch 2.12. See COMPATIBILITY.md.
+    # xformers wheel does not track recent torch. See COMPATIBILITY.md.
     "$COMFYUI_VENV_PIP" install --no-cache-dir \
         torch==${PYTORCH_VERSION} \
-        torchvision==0.27.0 \
+        torchvision==0.26.0 \
         torchaudio==${PYTORCH_VERSION} \
         --index-url=https://download.pytorch.org/whl/$short_cuda_version
 }

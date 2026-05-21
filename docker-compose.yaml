@@ -7,7 +7,7 @@ services:
       context: ./build
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
-        PYTORCH_VERSION: ${PYTORCH_VERSION:-2.12.0}
+        PYTORCH_VERSION: ${PYTORCH_VERSION:-2.11.0}
         COMFYUI_BUILD_REF: ${COMFYUI_BUILD_REF:-v0.22.0}
         # Base on Python image which is base + python + jupyter
         IMAGE_BASE: ${IMAGE_BASE:-ghcr.io/lucidboxai/python:${PYTHON_VERSION:-3.12}-v2-cuda-12.6.3-cudnn-runtime-24.04}
