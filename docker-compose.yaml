@@ -6,15 +6,15 @@ services:
     build:
       context: ./build
       args:
-        PYTHON_VERSION: ${PYTHON_VERSION:-3.10}
-        PYTORCH_VERSION: ${PYTORCH_VERSION:-2.4.1}
-        COMFYUI_BUILD_REF: ${COMFYUI_BUILD_REF:-}
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+        PYTORCH_VERSION: ${PYTORCH_VERSION:-2.12.0}
+        COMFYUI_BUILD_REF: ${COMFYUI_BUILD_REF:-v0.22.0}
         # Base on Python image which is base + python + jupyter
-        IMAGE_BASE: ${IMAGE_BASE:-ghcr.io/ai-dock/python:${PYTHON_VERSION:-3.10}-v2-cuda-12.1.1-base-22.04}
+        IMAGE_BASE: ${IMAGE_BASE:-ghcr.io/lucidboxai/python:${PYTHON_VERSION:-3.12}-v2-cuda-12.6.3-cudnn-runtime-24.04}
       tags:
-        - "ghcr.io/ai-dock/comfyui:${IMAGE_TAG:-pytorch-${PYTORCH_VERSION:-2.3.0}-py3.10-v2-cuda-12.1.1-base-22.04}"
-        
-    image: ghcr.io/ai-dock/comfyui:${IMAGE_TAG:-pytorch-${PYTORCH_VERSION:-2.3.0}-py3.10-v2-cuda-12.1.1-base-22.04}
+        - "ghcr.io/lucidboxai/comfyui:${IMAGE_TAG:-v2-cuda-12.6.3-cudnn-runtime-24.04-v0.22.0}"
+
+    image: ghcr.io/lucidboxai/comfyui:${IMAGE_TAG:-v2-cuda-12.6.3-cudnn-runtime-24.04-v0.22.0}
     
     ## For Nvidia GPU's - You probably want to uncomment this
     #deploy:

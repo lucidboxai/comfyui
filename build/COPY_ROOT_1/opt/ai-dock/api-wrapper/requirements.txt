@@ -3,7 +3,6 @@ pydantic>=2
 aiobotocore
 aiofiles
 aiohttp
-fastapi==0.103
-pathlib
+fastapi>=0.115
 python-magic
-uvicorn==0.23
+uvicorn>=0.34
