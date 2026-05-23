@@ -1,0 +1,76 @@
+name: PR Build Check
+
+# Lightweight CI for PRs: build the comfyui image but DO NOT publish.
+# Catches Dockerfile / build-script / requirements regressions on every
+# PR without touching the GHCR registry.
+#
+# Builds against the published lucidboxai/python, which itself depends
+# on the published lucidboxai/base-image — so this workflow exercises
+# the full stack integration end-to-end on every PR.
+#
+# Distinct from smoke-test.yml (which runs against the published image
+# post-publish, not pre-merge). Both are kept; they cover different
+# failure modes (build-time vs runtime).
+#
+# Mirrors lucidboxai/base-image's INFRA-001 and lucidboxai/python's
+# INFRA-003.
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'build/**'
+      - '.github/workflows/pr-build-check.yml'
+  workflow_dispatch:
+
+env:
+  UBUNTU_VERSION: "24.04"
+  CUDA_VARIANT: "12.6.3-cudnn-runtime"
+  PYTHON_VERSION: "3.12"
+  PYTORCH_VERSION: "2.11.0"
+  COMFYUI_BUILD_REF: "v0.22.0"
+  BUILDX_NO_DEFAULT_ATTESTATIONS: 1
+
+permissions:
+  contents: read
+
+jobs:
+  nvidia-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Free Space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Permissions fixes
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          target="${HOME}/work/${REPO_NAME}/${REPO_NAME}/build/COPY*"
+          chmod -R ug+rwX ${target}
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: build
+          build-args: |
+            IMAGE_BASE=ghcr.io/lucidboxai/python:${{ env.PYTHON_VERSION }}-v2-cuda-${{ env.CUDA_VARIANT }}-${{ env.UBUNTU_VERSION }}
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            PYTORCH_VERSION=${{ env.PYTORCH_VERSION }}
+            COMFYUI_BUILD_REF=${{ env.COMFYUI_BUILD_REF }}
+          push: false
+          provenance: false
+          tags: lucidboxai-comfyui:pr-build-check
