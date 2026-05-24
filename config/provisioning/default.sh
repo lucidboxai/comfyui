@@ -106,18 +106,27 @@ function provisioning_start() {
     source /opt/ai-dock/etc/environment.sh
     source /opt/ai-dock/bin/venv-set.sh comfyui
 
+    # PORT-013: set up persistent model + user-data symlinks before any
+    # downloads land. Without these, models would download to a path
+    # ComfyUI doesn't look at, and workflows would be lost on pod restart.
+    provisioning_link_models
+    provisioning_link_user
+
     provisioning_print_header
     provisioning_get_apt_packages
     provisioning_get_nodes
     provisioning_get_pip_packages
+    # Per-array destinations updated to modern ComfyUI directory names
+    # (PORT-013). Array variable names kept as-is for backward compat
+    # with operator-side PROVISIONING_SCRIPT files.
     provisioning_get_models \
-        "${WORKSPACE}/storage/stable_diffusion/models/ckpt" \
+        "${WORKSPACE}/storage/stable_diffusion/models/checkpoints" \
         "${CHECKPOINT_MODELS[@]}"
     provisioning_get_models \
-        "${WORKSPACE}/storage/stable_diffusion/models/unet" \
+        "${WORKSPACE}/storage/stable_diffusion/models/diffusion_models" \
         "${UNET_MODELS[@]}"
     provisioning_get_models \
-        "${WORKSPACE}/storage/stable_diffusion/models/lora" \
+        "${WORKSPACE}/storage/stable_diffusion/models/loras" \
         "${LORA_MODELS[@]}"
     provisioning_get_models \
         "${WORKSPACE}/storage/stable_diffusion/models/controlnet" \
@@ -126,7 +135,7 @@ function provisioning_start() {
         "${WORKSPACE}/storage/stable_diffusion/models/vae" \
         "${VAE_MODELS[@]}"
     provisioning_get_models \
-        "${WORKSPACE}/storage/stable_diffusion/models/esrgan" \
+        "${WORKSPACE}/storage/stable_diffusion/models/upscale_models" \
         "${ESRGAN_MODELS[@]}"
     provisioning_print_end
 }
@@ -137,6 +146,100 @@ function pip_install() {
         else
             micromamba run -n comfyui pip install --no-cache-dir "$@"
         fi
+}
+
+# PORT-013: Symlink ComfyUI model directories to the persistent workspace
+# volume. Lets models survive pod restarts; lets ComfyUI see models
+# downloaded to the persistent path. Each entry maps a ComfyUI model
+# type to the persistent storage path. Adding a new type means: it
+# persists across restarts AND ComfyUI sees models that land there.
+function provisioning_link_models() {
+    local models_root="${WORKSPACE}/storage/stable_diffusion/models"
+    local comfyui_models="/opt/ComfyUI/models"
+
+    declare -A model_mappings=(
+        # ── ComfyUI core: base T2I ──
+        ["checkpoints"]="${models_root}/checkpoints"
+        ["loras"]="${models_root}/loras"
+        ["vae"]="${models_root}/vae"
+        ["controlnet"]="${models_root}/controlnet"
+        ["upscale_models"]="${models_root}/upscale_models"
+        ["diffusion_models"]="${models_root}/diffusion_models"
+        ["unet"]="${models_root}/diffusion_models"  # legacy alias — same target as diffusion_models
+        # ── ComfyUI core: encoders + extras ──
+        ["clip"]="${models_root}/clip"
+        ["clip_vision"]="${models_root}/clip_vision"
+        ["text_encoders"]="${models_root}/text_encoders"
+        ["embeddings"]="${models_root}/embeddings"
+        ["style_models"]="${models_root}/style_models"
+        ["vae_approx"]="${models_root}/vae_approx"
+        # ── ComfyUI core: legacy but recognized ──
+        ["gligen"]="${models_root}/gligen"
+        ["hypernetworks"]="${models_root}/hypernetworks"
+        ["photomaker"]="${models_root}/photomaker"
+        # ── photobooth-relevant custom-node directories ──
+        ["pulid"]="${models_root}/pulid"
+        ["insightface"]="${models_root}/insightface"
+        ["facerestore_models"]="${models_root}/facerestore_models"
+        # ── animation custom-node directories ──
+        ["animatediff_models"]="${models_root}/animatediff_models"
+        ["animatediff_motion_lora"]="${models_root}/animatediff_motion_lora"
+    )
+
+    for type in "${!model_mappings[@]}"; do
+        local src="${model_mappings[$type]}"
+        local dest="${comfyui_models}/${type}"
+
+        # Ensure the persistent target exists
+        if [[ ! -d "$src" ]]; then mkdir -p "$src"; fi
+
+        # Replace real directory with symlink if needed
+        if [[ -d "$dest" && ! -L "$dest" ]]; then
+            # Try graceful removal first (only succeeds if empty)
+            if ! rmdir "$dest" 2>/dev/null; then
+                # Non-empty: operator likely has models from a pre-PORT-013
+                # build. Skip with warning rather than silently destroying
+                # their files. Operator should manually move files into the
+                # persistent path.
+                printf "WARN: %s exists with files; not symlinking. Move files to %s and rerun.\n" \
+                    "$dest" "$src" >&2
+                continue
+            fi
+        fi
+        if [[ ! -L "$dest" ]]; then
+            ln -s "$src" "$dest"
+        fi
+    done
+    printf "Linked %d model directories to %s\n" "${#model_mappings[@]}" "$models_root"
+}
+
+# PORT-013: Persist ComfyUI user data (workflows, UI settings) across
+# pod restarts. Without this, operators lose their workflow library
+# every pod restart.
+function provisioning_link_user() {
+    local user_persist="${WORKSPACE}/storage/comfyui_user"
+    local user_link="/opt/ComfyUI/user"
+
+    if [[ ! -d "$user_persist" ]]; then
+        mkdir -p "$user_persist"
+        # Seed with ComfyUI's default user dir contents on first persist
+        if [[ -d "$user_link" && ! -L "$user_link" ]]; then
+            cp -rT "$user_link" "$user_persist" 2>/dev/null || true
+        fi
+    fi
+    if [[ -d "$user_link" && ! -L "$user_link" ]]; then
+        rm -rf "$user_link"
+    fi
+    if [[ ! -L "$user_link" ]]; then
+        ln -s "$user_persist" "$user_link"
+        printf "Linked /opt/ComfyUI/user -> %s\n" "$user_persist"
+    fi
+
+    # Optional persistence (commented; uncomment if disk usage is acceptable):
+    # output_persist="${WORKSPACE}/storage/comfyui_output"
+    # input_persist="${WORKSPACE}/storage/comfyui_input"
+    # Generated images and uploaded inputs accumulate fast on photo-gen
+    # workloads. PHP-lineage default is OFF to avoid surprise disk usage.
 }
 
 function provisioning_get_apt_packages() {
