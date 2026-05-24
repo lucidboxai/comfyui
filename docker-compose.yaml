@@ -8,7 +8,11 @@ services:
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
         PYTORCH_VERSION: ${PYTORCH_VERSION:-2.11.0}
-        COMFYUI_BUILD_REF: ${COMFYUI_BUILD_REF:-v0.22.0}
+        # ComfyUI commit SHA at tag v0.22.0 (ADR-007: SHA-pinned to
+        # immunize against upstream tag re-pointing). Bump both this
+        # default and the version label in the IMAGE_TAG fallback below
+        # together when bumping ComfyUI.
+        COMFYUI_BUILD_REF: ${COMFYUI_BUILD_REF:-a8d2519058ea766ca3b14916bcc01ecef5efd235}
         # Base on Python image which is base + python + jupyter
         IMAGE_BASE: ${IMAGE_BASE:-ghcr.io/lucidboxai/python:${PYTHON_VERSION:-3.12}-v2-cuda-12.6.3-cudnn-runtime-24.04}
       tags:
