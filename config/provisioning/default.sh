@@ -92,7 +92,15 @@ CONTROLNET_MODELS=(
 ### DO NOT EDIT BELOW HERE UNLESS YOU KNOW WHAT YOU ARE DOING ###
 
 function provisioning_start() {
-    if [[ ! -d /opt/environments/python ]]; then 
+    # ADR-007: default AUTO_UPDATE to "false" if unset. Closes the
+    # "next pod restart pulls latest custom node code" vector for
+    # unpinned operator-added nodes. Operators wanting per-restart
+    # auto-updates set AUTO_UPDATE=true in their RunPod template.
+    # Pinned nodes (PORT-009's URL@SHA syntax) get drift-detection
+    # re-checkout regardless of AUTO_UPDATE.
+    export AUTO_UPDATE="${AUTO_UPDATE:-false}"
+
+    if [[ ! -d /opt/environments/python ]]; then
         export MAMBA_BASE=true
     fi
     source /opt/ai-dock/etc/environment.sh
