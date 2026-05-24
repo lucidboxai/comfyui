@@ -100,7 +100,11 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - {latest: "true", comfyui: "v0.22.0", python: "3.12", pytorch: "2.11.0", cuda: "12.6.3-cudnn-runtime"}
+          # ADR-007: comfyui_sha is the SHA-pinned git ref used for actual
+          # `git checkout` (immutable). comfyui stays as the human-readable
+          # label used for image tag suffix. Refresh BOTH together when
+          # bumping ComfyUI.
+          - {latest: "true", comfyui: "v0.22.0", comfyui_sha: "a8d2519058ea766ca3b14916bcc01ecef5efd235", python: "3.12", pytorch: "2.11.0", cuda: "12.6.3-cudnn-runtime"}
     steps:
       -
         name: Free Space
@@ -138,21 +142,32 @@ jobs:
         name: Set tags
         run: |
           img_path_ghcr="ghcr.io/${{ env.REPO_NAMESPACE }}/${{ env.REPO_NAME }}"
-          if [[ -z '${{ matrix.build.comfyui }}' ]]; then
-              COMFYUI_BUILD_REF="$(curl -s https://api.github.com/repos/comfyanonymous/ComfyUI/tags | jq -r '.[0].name')"
-          else
+          # ADR-007: prefer the SHA-pinned comfyui_sha for actual git checkout
+          # (immutable). Fall back to the human-readable comfyui ref if no SHA
+          # is set, then to a latest-tag API fetch if neither is set.
+          if [[ -n '${{ matrix.build.comfyui_sha }}' ]]; then
+              COMFYUI_BUILD_REF="${{ matrix.build.comfyui_sha }}"
+          elif [[ -n '${{ matrix.build.comfyui }}' ]]; then
               COMFYUI_BUILD_REF="${{ matrix.build.comfyui }}"
+          else
+              COMFYUI_BUILD_REF="$(curl -s https://api.github.com/repos/comfyanonymous/ComfyUI/tags | jq -r '.[0].name')"
           fi
           [ -z "$COMFYUI_BUILD_REF" ] && { echo "Error: COMFYUI_BUILD_REF is empty. Exiting script." >&2; exit 1; }
           echo "COMFYUI_BUILD_REF=${COMFYUI_BUILD_REF}" >> ${GITHUB_ENV}
 
           base_tag="v2-cuda-${{ matrix.build.cuda }}-${{ env.UBUNTU_VERSION }}"
 
+          # Use the human-readable comfyui label for image tag suffix (not the
+          # SHA). Falls back to COMFYUI_BUILD_REF for matrix entries that don't
+          # set a separate label — preserves existing tag schema for cpu/amd.
+          comfyui_label="${{ matrix.build.comfyui }}"
+          [ -z "$comfyui_label" ] && comfyui_label="$COMFYUI_BUILD_REF"
+
           if [[ ${{ matrix.build.latest }} == "true" ]]; then
               echo "Marking latest"
-              TAGS="${img_path_ghcr}:${base_tag}-${COMFYUI_BUILD_REF}, ${img_path_ghcr}:${base_tag}, ${img_path_ghcr}:latest, ${img_path_ghcr}:latest-cuda"
+              TAGS="${img_path_ghcr}:${base_tag}-${comfyui_label}, ${img_path_ghcr}:${base_tag}, ${img_path_ghcr}:latest, ${img_path_ghcr}:latest-cuda"
           else
-              TAGS="${img_path_ghcr}:${base_tag}-${COMFYUI_BUILD_REF}"
+              TAGS="${img_path_ghcr}:${base_tag}-${comfyui_label}"
           fi
           echo "TAGS=${TAGS}" >> ${GITHUB_ENV}
       -
