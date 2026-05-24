@@ -19,8 +19,17 @@ PIP_PACKAGES=(
 )
 
 NODES=(
-    "https://github.com/ltdrdata/ComfyUI-Manager"
-    "https://github.com/cubiq/ComfyUI_essentials"
+    # ADR-007: commit SHAs pinned via @<sha> suffix. Refresh by picking a
+    # commit ≥72hr old and verifying via:
+    #   gh api /repos/<owner>/<repo>/commits/<sha> --jq '.commit.author.date'
+    # Tag-based references (e.g. @v1.2.3) work the same way.
+    # Operators using PROVISIONING_SCRIPT can opt out of pinning by omitting
+    # the @suffix; that preserves the existing "git clone HEAD" behavior.
+    "https://github.com/ltdrdata/ComfyUI-Manager@bf5c3464285e808eadbcad3b474997f43982a418"  # 2026-05-20; ADR-007 pin
+    # cubiq/ComfyUI_essentials dropped from defaults (was upstream-inherited;
+    # not load-bearing for known lucidboxai workflows; repo in maintenance
+    # mode since 2025-04). Operators who want it can add it to their own
+    # PROVISIONING_SCRIPT NODES — the @sha syntax works for them too.
 )
 
 # Model arrays — DEFAULT: all entries commented out (blank canvas).
@@ -135,12 +144,31 @@ function provisioning_get_pip_packages() {
 }
 
 function provisioning_get_nodes() {
-    for repo in "${NODES[@]}"; do
+    for entry in "${NODES[@]}"; do
+        # Parse entry: "URL" or "URL@SHA-or-ref" (ADR-007 SHA pinning).
+        # Assumes HTTPS URLs (no embedded @); SSH-form URLs are not supported.
+        if [[ "$entry" == *@* ]]; then
+            repo="${entry%@*}"
+            pin="${entry##*@}"
+        else
+            repo="$entry"
+            pin=""
+        fi
         dir="${repo##*/}"
         path="/opt/ComfyUI/custom_nodes/${dir}"
         requirements="${path}/requirements.txt"
         if [[ -d $path ]]; then
-            if [[ ${AUTO_UPDATE,,} != "false" ]]; then
+            if [[ -n "$pin" ]]; then
+                # Pinned node: verify we're at the pin; re-checkout on drift.
+                current="$(cd "$path" && git rev-parse HEAD 2>/dev/null || echo "")"
+                if [[ "$current" != "$pin"* ]]; then
+                    printf "Re-pinning node %s to %s...\n" "$dir" "$pin"
+                    ( cd "$path" && git fetch && git checkout "$pin" )
+                    if [[ -e $requirements ]]; then
+                        pip_install -r "$requirements"
+                    fi
+                fi
+            elif [[ ${AUTO_UPDATE,,} != "false" ]]; then
                 printf "Updating node: %s...\n" "${repo}"
                 ( cd "$path" && git pull )
                 if [[ -e $requirements ]]; then
@@ -148,8 +176,11 @@ function provisioning_get_nodes() {
                 fi
             fi
         else
-            printf "Downloading node: %s...\n" "${repo}"
+            printf "Downloading node: %s%s...\n" "${repo}" "${pin:+ @ ${pin}}"
             git clone "${repo}" "${path}" --recursive
+            if [[ -n "$pin" ]]; then
+                ( cd "$path" && git checkout "$pin" )
+            fi
             if [[ -e $requirements ]]; then
                 pip_install -r "${requirements}"
             fi
