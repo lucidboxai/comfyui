@@ -1,4 +1,8 @@
+[![PR Build Check](https://github.com/lucidboxai/comfyui/actions/workflows/pr-build-check.yml/badge.svg?branch=main)](https://github.com/lucidboxai/comfyui/actions/workflows/pr-build-check.yml)
 [![Docker Build](https://github.com/ai-dock/comfyui/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ai-dock/comfyui/actions/workflows/docker-build.yml)
+
+*`PR Build Check` is this fork's own CI. `Docker Build` links to the upstream
+project's workflow and reflects its status, not this fork's.*
 
 # AI-Dock + ComfyUI Docker Image
 
