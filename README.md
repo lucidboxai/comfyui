@@ -3,11 +3,10 @@
 # AI-Dock + ComfyUI Docker Image
 
 > [!IMPORTANT]
-> **Modified version.** This repository is a fork of
-> [ai-dock/comfyui](https://github.com/ai-dock/comfyui) by Robert Ballantyne (AI-Dock), modified by
-> lucidboxai. It is not the original, unmodified software — please report issues with these
-> changes here, not upstream. See [NOTICE.md](NOTICE.md) for a summary of the modifications
-> and [LICENSE.md](LICENSE.md) for licence terms.
+> **This is a modified fork.** Based on [ai-dock/comfyui](https://github.com/ai-dock/comfyui) by Robert
+> Ballantyne (AI-Dock), with changes by lucidboxai. Please report anything broken here rather
+> than upstream. See [NOTICE.md](NOTICE.md) for what differs and [LICENSE.md](LICENSE.md) for
+> licence terms.
 
 Run [ComfyUI](https://github.com/comfyanonymous/ComfyUI) in a highly-configurable, cloud-first AI-Dock container.
 
